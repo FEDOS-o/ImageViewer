@@ -15,16 +15,16 @@ public:
     void setViewport(ImageViewport *viewport);
     
 public slots:
-    void onOpenImage() {}
-    void zoomIn() {}
-    void zoomOut() {}
-    void resetView() {}
+    void onOpenImage();
+    void zoomIn();
+    void zoomOut();
+    void resetView();
     
 private slots:
-    void onZoomRequested(double delta) {}
+    void onZoomRequested(double delta);
     void onPanRequested(const QPointF &delta) {}
     void onResetRequested() {}
-    void onFileDropped(const QString &filePath) {}
+    void onFileDropped(const QString &filePath);
     
 private:
     QPointer<ImageModel> m_model;

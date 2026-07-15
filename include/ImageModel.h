@@ -10,19 +10,19 @@ class ImageModel : public QObject {
 public:
     explicit ImageModel(QObject *parent = nullptr);
 
-    // Пустые методы-заглушки
-    bool loadImage(const QString &filePath) { return false; }
-    void setScale(double scale) {}
-    void setOffset(const QPointF &offset) {}
-    void resetTransform() {}
+    bool loadImage(const QString &filePath);
+    void setScale(double scale);
+    void setOffset(const QPointF &offset);
+    void resetTransform();
 
-    // Геттеры-заглушки
+    double calculateFitScale(const QSize &viewportSize) const;
+
     const QImage& getImage() const { return m_image; }
     const QString& getFilePath() const { return m_filePath; }
-    double getScale() const { return 1.0; }
+    double getScale() const { return m_scale; }
     const QPointF& getOffset() const { return m_offset; }
-    QSize getImageSize() const { return QSize(0, 0); }
-    bool hasImage() const { return false; }
+    QSize getImageSize() const { return m_image.size(); }
+    bool hasImage() const { return !m_image.isNull(); }
 
     signals:
         void imageChanged();

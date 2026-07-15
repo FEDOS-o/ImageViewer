@@ -18,11 +18,11 @@ public:
     ~MainWindow() override;
 
 private slots:
-    void onOpenImage() {}
-    void onZoomIn() {}
-    void onZoomOut() {}
-    void onResetView() {}
-    void updateStatusBar() {}
+    void onOpenImage();
+    void onZoomIn();
+    void onZoomOut();
+    void onResetView();
+    void updateStatusBar();
 
 private:
     void setupViewport();

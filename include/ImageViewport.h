@@ -31,6 +31,10 @@ protected:
     void fileDropped(const QString &filePath);
 
 private:
+    void updatePixmap();
+    QRectF getImageRect() const;
+
+
     QPointer<ImageModel> m_model;
     QPixmap m_pixmap;
     bool m_isPanning = false;
