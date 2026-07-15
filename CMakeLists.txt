@@ -1,7 +1,13 @@
 cmake_minimum_required(VERSION 4.2)
 project(ImageViewer)
 
-set(CMAKE_PREFIX_PATH "D:\\Qt\\6.11.1\\mingw_64")
+if (DEFINED ENV{QT_DIR})
+    set(CMAKE_PREFIX_PATH "$ENV{QT_DIR}")
+    message(STATUS "Using Qt from environment variable: $ENV{QT_DIR}")
+else()
+    set(CMAKE_PREFIX_PATH "D:/Qt/6.11.1/mingw_64")
+    message(STATUS "Using default Qt path: ${CMAKE_PREFIX_PATH}")
+endif()
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_AUTOMOC ON)
@@ -29,22 +35,21 @@ target_link_libraries(ImageViewer PRIVATE Qt6::Widgets)
 
 if (WIN32)
     set(EXECUTABLE_DIR "$<TARGET_FILE_DIR:ImageViewer>")
+    set(QT_BIN_DIR "${CMAKE_PREFIX_PATH}/bin")
+    set(QT_PLUGINS_DIR "${CMAKE_PREFIX_PATH}/plugins")
 
-    # Просто копируем всё необходимое
     add_custom_command(TARGET ImageViewer POST_BUILD
-            # Копируем плагины
             COMMAND ${CMAKE_COMMAND} -E copy_directory
-            "${CMAKE_PREFIX_PATH}/plugins"
-            "${EXECUTABLE_DIR}"
-            # Копируем DLL
-            COMMAND ${CMAKE_COMMAND} -E copy
-            "${CMAKE_PREFIX_PATH}/bin/Qt6Core.dll"
+            "${QT_PLUGINS_DIR}"
             "${EXECUTABLE_DIR}"
             COMMAND ${CMAKE_COMMAND} -E copy
-            "${CMAKE_PREFIX_PATH}/bin/Qt6Gui.dll"
+            "${QT_BIN_DIR}/Qt6Core.dll"
             "${EXECUTABLE_DIR}"
             COMMAND ${CMAKE_COMMAND} -E copy
-            "${CMAKE_PREFIX_PATH}/bin/Qt6Widgets.dll"
+            "${QT_BIN_DIR}/Qt6Gui.dll"
+            "${EXECUTABLE_DIR}"
+            COMMAND ${CMAKE_COMMAND} -E copy
+            "${QT_BIN_DIR}/Qt6Widgets.dll"
             "${EXECUTABLE_DIR}"
     )
 endif()
