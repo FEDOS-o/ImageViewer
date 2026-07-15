@@ -22,7 +22,7 @@ public slots:
     
 private slots:
     void onZoomRequested(double delta);
-    void onPanRequested(const QPointF &delta) {}
+    void onPanRequested(const QPointF &delta);
     void onResetRequested() {}
     void onFileDropped(const QString &filePath);
     

@@ -52,19 +52,71 @@ void ImageViewport::paintEvent(QPaintEvent *event) {
 }
 
 void ImageViewport::wheelEvent(QWheelEvent *event) {
+    if (!m_model || !m_model->hasImage()) {
+        event->ignore();
+        return;
+    }
+
+    QPointF cursorPos = event->position();
+
+    double currentScale = m_model->getScale();
+    QPointF currentOffset = m_model->getOffset();
+
+    double delta = (event->angleDelta().y() > 0) ? 1.1 : 0.9;
+    double newScale = currentScale * delta;
+    if (newScale < 0.001) newScale = 0.001;
+
+    QSize pixmapSize = m_pixmap.size();
+    QPointF imageCenter(width() / 2.0, height() / 2.0);
+
+    QPointF cursorDelta = cursorPos - imageCenter;
+
+    QPointF imagePoint(
+        (cursorDelta.x() - currentOffset.x()) / currentScale,
+        (cursorDelta.y() - currentOffset.y()) / currentScale
+    );
+
+    QPointF newOffset(
+        cursorDelta.x() - imagePoint.x() * newScale,
+        cursorDelta.y() - imagePoint.y() * newScale
+    );
+
+    m_model->setScale(newScale);
+    m_model->setOffset(newOffset);
+
     event->accept();
 }
 
 void ImageViewport::mousePressEvent(QMouseEvent *event) {
-    event->accept();
+    if (event->button() == Qt::LeftButton && m_model && m_model->hasImage()) {
+        m_isPanning = true;
+        m_lastMousePos = event->pos();
+        setCursor(Qt::ClosedHandCursor);
+        event->accept();
+    } else {
+        event->ignore();
+    }
 }
 
 void ImageViewport::mouseMoveEvent(QMouseEvent *event) {
-    event->accept();
+    if (m_isPanning) {
+        QPoint delta = event->pos() - m_lastMousePos;
+        emit panRequested(QPointF(delta.x(), delta.y()));
+        m_lastMousePos = event->pos();
+        event->accept();
+    } else {
+        event->ignore();
+    }
 }
 
 void ImageViewport::mouseReleaseEvent(QMouseEvent *event) {
-    event->accept();
+    if (event->button() == Qt::LeftButton && m_isPanning) {
+        m_isPanning = false;
+        setCursor(Qt::ArrowCursor);
+        event->accept();
+    } else {
+        event->ignore();
+    }
 }
 
 void ImageViewport::resizeEvent(QResizeEvent *event) {

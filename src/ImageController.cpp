@@ -18,6 +18,12 @@ void ImageController::setViewport(ImageViewport *viewport) {
     if (m_viewport) {
         connect(m_viewport, &ImageViewport::fileDropped,
             this, &ImageController::onFileDropped);
+
+        connect(m_viewport, &ImageViewport::zoomRequested,
+            this, &ImageController::onZoomRequested);
+
+        connect(m_viewport, &ImageViewport::panRequested,
+            this, &ImageController::onPanRequested);
     }
 }
 
@@ -74,6 +80,9 @@ void ImageController::onZoomRequested(double delta) {
     double newScale = m_model->getScale() * delta;
     if (newScale < 0.001) newScale = 0.001;
     m_model->setScale(newScale);
+}
+
+void ImageController::onPanRequested(const QPointF &delta) {
 }
 
 void ImageController::onFileDropped(const QString &filePath) {

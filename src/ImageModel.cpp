@@ -47,8 +47,8 @@ double ImageModel::calculateFitScale(const QSize &viewportSize) const {
 
     QSize imageSize = m_image.size();
 
-    double scaleX = static_cast<double>(viewportSize.width() / imageSize.width());
-    double scaleY = static_cast<double>(viewportSize.height() / imageSize.height());
+    double scaleX = viewportSize.width() / static_cast<double>(imageSize.width());
+    double scaleY = viewportSize.height() / static_cast<double>(imageSize.height());
 
     return std::min(scaleX, scaleY);
 }

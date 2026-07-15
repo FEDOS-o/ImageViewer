@@ -79,11 +79,8 @@ void MainWindow::setupConnections() {
     connect(ui->actionExit, &QAction::triggered, this, &QWidget::close);
 
     connect(m_model, &ImageModel::imageChanged, this, [this]() {
-        if (m_model && m_model->hasImage() && m_viewport) {
-            QSize viewportSize = m_viewport->size();
-            double fitScale = m_model->calculateFitScale(viewportSize);
-            m_model->setScale(fitScale);
-            m_model->setOffset({0, 0});
+        if (m_controller) {
+            m_controller->resetView();
         }
         updateStatusBar();
     });
