@@ -83,6 +83,10 @@ void ImageController::onZoomRequested(double delta) {
 }
 
 void ImageController::onPanRequested(const QPointF &delta) {
+    if (!m_model || !m_model->hasImage()) return;
+
+    QPointF newOffset = m_model->getOffset() + delta;
+    m_model->setOffset(newOffset);
 }
 
 void ImageController::onFileDropped(const QString &filePath) {
