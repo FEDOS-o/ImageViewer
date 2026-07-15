@@ -6,8 +6,12 @@
 #include <QDragEnterEvent>
 #include <QMimeData>
 #include <QUrl>
+#include <QApplication>
 
-ImageViewport::ImageViewport(QWidget *parent) 
+constexpr int ImageViewport::QUALITY_LEVELS[];
+constexpr int ImageViewport::MAX_QUALITY_LEVEL;
+
+ImageViewport::ImageViewport(QWidget *parent)
     : QWidget(parent) {
     setFocusPolicy(Qt::StrongFocus);
     setAcceptDrops(true);
@@ -16,16 +20,19 @@ ImageViewport::ImageViewport(QWidget *parent)
     setMinimumSize(200, 200);
 }
 
+ImageViewport::~ImageViewport() {
+    m_updateRequestVersion++;
+}
+
 void ImageViewport::setModel(ImageModel *model) {
     if (m_model) {
-        disconnect(m_model,nullptr,nullptr,nullptr);
+        disconnect(m_model, nullptr, this, nullptr);
     }
 
     m_model = model;
 
     if (m_model) {
         connect(m_model, &ImageModel::imageChanged, this, &ImageViewport::updatePixmap);
-
         connect(m_model, &ImageModel::transformChanged, this, &ImageViewport::updatePixmap);
 
         updatePixmap();
@@ -40,7 +47,7 @@ void ImageViewport::paintEvent(QPaintEvent *event) {
     if (m_pixmap.isNull()) {
         painter.setPen(Qt::white);
         painter.drawText(rect(), Qt::AlignCenter,
-                         "Image Viewport\n(not implemented yet)");
+                         "No image loaded\nDrag & drop image here");
         return;
     }
 
@@ -57,6 +64,8 @@ void ImageViewport::wheelEvent(QWheelEvent *event) {
         return;
     }
 
+    m_updateRequestVersion++;
+
     QPointF cursorPos = event->position();
 
     double currentScale = m_model->getScale();
@@ -64,7 +73,9 @@ void ImageViewport::wheelEvent(QWheelEvent *event) {
 
     double delta = (event->angleDelta().y() > 0) ? 1.1 : 0.9;
     double newScale = currentScale * delta;
-    if (newScale < 0.001) newScale = 0.001;
+
+    if (newScale < MIN_SCALE) newScale = MIN_SCALE;
+    if (newScale > MAX_SCALE) newScale = MAX_SCALE;
 
     QSize pixmapSize = m_pixmap.size();
     QPointF imageCenter(width() / 2.0, height() / 2.0);
@@ -85,10 +96,14 @@ void ImageViewport::wheelEvent(QWheelEvent *event) {
     m_model->setOffset(newOffset);
 
     event->accept();
+
+    updatePixmap();
 }
 
 void ImageViewport::mousePressEvent(QMouseEvent *event) {
     if (event->button() == Qt::LeftButton && m_model && m_model->hasImage()) {
+        m_updateRequestVersion++;
+
         m_isPanning = true;
         m_lastMousePos = event->pos();
         setCursor(Qt::ClosedHandCursor);
@@ -113,6 +128,11 @@ void ImageViewport::mouseReleaseEvent(QMouseEvent *event) {
     if (event->button() == Qt::LeftButton && m_isPanning) {
         m_isPanning = false;
         setCursor(Qt::ArrowCursor);
+
+        if (m_model && m_model->hasImage()) {
+            updatePixmap();
+        }
+
         event->accept();
     } else {
         event->ignore();
@@ -137,9 +157,7 @@ void ImageViewport::dropEvent(QDropEvent *event) {
         QList<QUrl> urls = mimeData->urls();
         if (!urls.isEmpty()) {
             QString filePath = urls.first().toLocalFile();
-
             emit fileDropped(filePath);
-
             event->acceptProposedAction();
         }
     }
@@ -148,16 +166,76 @@ void ImageViewport::dropEvent(QDropEvent *event) {
 void ImageViewport::updatePixmap() {
     if (!m_model || !m_model->hasImage()) {
         m_pixmap = QPixmap();
+        m_renderedPixmap = QPixmap();
         update();
+        return;
+    }
+
+    uint64_t requestVersion = ++m_updateRequestVersion;
+    m_currentQualityLevel = 0;
+
+    performUpdate(requestVersion);
+}
+
+void ImageViewport::performUpdate(uint64_t requestVersion) {
+    if (requestVersion != m_updateRequestVersion.load()) {
         return;
     }
 
     QImage image = m_model->getImage();
     double scale = m_model->getScale();
 
-    QSize scaledSize = image.size() * scale;
+    QSize targetSize = image.size() * scale;
 
-    m_pixmap = QPixmap::fromImage(image).scaled(scaledSize, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+    if (m_currentQualityLevel >= MAX_QUALITY_LEVEL) {
+        return;
+    }
+
+    int divisor = QUALITY_LEVELS[m_currentQualityLevel];
+    QSize renderSize = targetSize / divisor;
+
+    if (renderSize.width() < 1) renderSize.setWidth(1);
+    if (renderSize.height() < 1) renderSize.setHeight(1);
+
+    QPixmap newPixmap = QPixmap::fromImage(image).scaled(
+        renderSize,
+        Qt::KeepAspectRatio,
+        Qt::SmoothTransformation
+    );
+
+    QPixmap scaledPixmap = newPixmap.scaled(
+        targetSize,
+        Qt::KeepAspectRatio,
+        Qt::FastTransformation
+    );
+
+    m_renderedPixmap = scaledPixmap;
+    m_pixmap = scaledPixmap;
+    update();
+
+    m_currentQualityLevel++;
+
+    if (m_currentQualityLevel < MAX_QUALITY_LEVEL) {
+        QApplication::processEvents();
+
+        if (requestVersion != m_updateRequestVersion.load()) {
+            return;
+        }
+
+        QMetaObject::invokeMethod(this, [this, requestVersion]() {
+            if (requestVersion == m_updateRequestVersion.load()) {
+                performUpdate(requestVersion);
+            }
+        }, Qt::QueuedConnection);
+    }
+}
+
+void ImageViewport::applyResult(uint64_t requestVersion, const QPixmap& pixmap) {
+    if (requestVersion != m_updateRequestVersion.load()) {
+        return;
+    }
+
+    m_pixmap = pixmap;
     update();
 }
 
@@ -167,7 +245,6 @@ QRectF ImageViewport::getImageRect() const {
     }
 
     QSize pixmapSize = m_pixmap.size();
-
     QPointF offset = m_model ? m_model->getOffset() : QPointF(0, 0);
 
     qreal x = (width() - pixmapSize.width()) / 2.0 + offset.x();
